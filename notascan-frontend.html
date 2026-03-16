@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d0f14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>NotaScan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #0f1219;
+    --surface2: #131826;
+    --border: #1a1f30;
+    --border2: #232840;
+    --accent: #e8a030;
+    --text: #dde1ef;
+    --muted: #5a6080;
+    --dim: #3a4060;
+    --success: #3ecf8e;
+    --danger: #e05050;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', 'Courier New', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  .app { max-width: 600px; margin: 0 auto; padding: 20px 16px 80px; }
+
+  /* Header */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 16px; margin-bottom: 24px;
+    border-bottom: 1px solid var(--border2);
+  }
+  .logo { font-family: Georgia, serif; font-size: 20px; font-weight: 700; }
+  .logo span { color: var(--accent); }
+  .pill {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px;
+    background: rgba(232,160,48,0.12); color: var(--accent);
+    border: 1px solid rgba(232,160,48,0.25); padding: 3px 9px; border-radius: 20px;
+  }
+
+  /* Config bar */
+  .config-bar {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .config-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+  .config-input {
+    flex: 1; min-width: 200px;
+    background: var(--bg); border: 1px solid var(--border2);
+    color: var(--text); font-family: inherit; font-size: 12px;
+    padding: 6px 10px; border-radius: 6px; outline: none;
+  }
+  .config-input:focus { border-color: var(--accent); }
+  .config-save {
+    font-family: inherit; font-size: 11px; padding: 6px 14px;
+    border-radius: 6px; border: none; background: var(--accent);
+    color: var(--bg); font-weight: 700; cursor: pointer;
+  }
+  .config-status { font-size: 10px; color: var(--success); display: none; }
+  .config-status.show { display: block; }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--border2); border-radius: 10px;
+    background: var(--surface); cursor: pointer;
+    transition: border-color 0.2s; overflow: hidden;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); }
+  .upload-zone.has-img { border-style: solid; border-color: var(--accent); cursor: default; }
+
+  .zone-empty { padding: 40px 20px; text-align: center; }
+  .zone-icon {
+    width: 48px; height: 48px; margin: 0 auto 14px;
+    background: var(--surface2); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border2);
+  }
+  .zone-title { font-family: Georgia, serif; font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+  .zone-sub { font-size: 11px; color: var(--muted); line-height: 1.7; }
+
+  #preview { width: 100%; max-height: 500px; object-fit: contain; object-position: top; display: none; background: #080a0f; }
+  .img-bar {
+    display: flex; gap: 8px; padding: 10px 14px; justify-content: center;
+    background: var(--surface); border-top: 1px solid var(--border);
+  }
+  .ghost-btn {
+    font-family: inherit; font-size: 11px; padding: 6px 14px;
+    border-radius: 6px; border: 1px solid var(--border2);
+    background: transparent; color: var(--muted); cursor: pointer;
+    transition: color 0.15s;
+  }
+  .ghost-btn:hover { color: var(--text); }
+
+  #file-input { display: none; }
+
+  /* Scan row */
+  .scan-row { margin-top: 12px; display: flex; align-items: center; gap: 12px; }
+  .scan-btn {
+    font-family: inherit; font-size: 13px; font-weight: 700;
+    padding: 10px 22px; border-radius: 8px; border: none;
+    background: var(--dim); color: #2a3050; cursor: not-allowed;
+    display: flex; align-items: center; gap: 8px; transition: background 0.2s, color 0.2s;
+  }
+  .scan-btn.active { background: var(--accent); color: var(--bg); cursor: pointer; }
+  .hint { font-size: 11px; color: var(--dim); }
+
+  /* Spinner */
+  .spinner {
+    width: 13px; height: 13px;
+    border: 2px solid rgba(0,0,0,0.2); border-top-color: var(--bg);
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Error */
+  .error-box {
+    margin-top: 12px; background: rgba(224,80,80,0.08);
+    border: 1px solid rgba(224,80,80,0.3); border-radius: 8px;
+    padding: 11px 14px; font-size: 12px; color: var(--danger); display: none;
+  }
+  .error-box.show { display: block; }
+
+  /* Result */
+  .result { margin-top: 24px; display: none; animation: fadeUp 0.4s ease; }
+  .result.show { display: block; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+  .divider {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: var(--dim);
+    margin: 0 0 12px;
+  }
+  .divider-line { flex: 1; height: 1px; background: var(--border); }
+
+  /* Nota card */
+  .nota-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+
+  .nota-head {
+    padding: 14px 18px; background: var(--surface2); border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap;
+  }
+  .toko-name { font-family: Georgia, serif; font-size: 17px; font-weight: 700; color: var(--accent); }
+  .meta { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.8; white-space: pre-line; }
+  .no-nota {
+    font-size: 10px; background: rgba(232,160,48,0.1); color: var(--accent);
+    padding: 3px 9px; border-radius: 4px; border: 1px solid rgba(232,160,48,0.2);
+    white-space: nowrap; margin-top: 2px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim);
+    padding: 9px 14px; text-align: left;
+    background: rgba(255,255,255,0.015); border-bottom: 1px solid var(--border);
+  }
+  th.right, td.right { text-align: right; }
+  td {
+    padding: 9px 14px; font-size: 12px;
+    border-bottom: 1px solid rgba(26,31,48,0.6);
+    font-variant-numeric: tabular-nums;
+  }
+  td.muted { color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+
+  .totals { padding: 12px 18px; background: var(--surface2); border-top: 1px solid var(--border); }
+  .total-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; color: var(--muted); }
+  .grand-row {
+    display: flex; justify-content: space-between;
+    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
+    font-family: Georgia, serif; font-size: 18px; font-weight: 700; color: var(--accent);
+  }
+
+  .catatan {
+    margin-top: 10px; background: rgba(62,207,142,0.05);
+    border: 1px solid rgba(62,207,142,0.18); border-radius: 8px;
+    padding: 10px 14px; font-size: 12px; color: var(--success); line-height: 1.7;
+    display: none;
+  }
+  .catatan.show { display: block; }
+
+  .raw-box {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; font-size: 11px; color: var(--dim);
+    line-height: 1.8; white-space: pre-wrap; max-height: 180px; overflow-y: auto;
+  }
+  .copy-btn {
+    font-family: inherit; font-size: 10px; padding: 4px 12px;
+    border-radius: 5px; border: 1px solid var(--border);
+    background: transparent; color: var(--dim); cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">Nota<span>Scan</span></div>
+    <div class="pill">Claude Vision</div>
+  </header>
+
+  <!-- Backend URL config -->
+  <div class="config-bar">
+    <span class="config-label">Backend URL</span>
+    <input class="config-input" id="backend-url" type="text" placeholder="https://notascan-xxx.railway.app" />
+    <button class="config-save" onclick="saveBackend()">Simpan</button>
+    <span class="config-status" id="config-status">✓ Tersimpan</span>
+  </div>
+
+  <!-- Upload Zone -->
+  <div class="upload-zone" id="upload-zone" onclick="zoneClick()">
+    <div class="zone-empty" id="zone-empty">
+      <div class="zone-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e8a030" stroke-width="1.5">
+          <path d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
+        </svg>
+      </div>
+      <div class="zone-title">Upload Foto Nota</div>
+      <div class="zone-sub">Tap untuk pilih foto · Drag & drop<br>JPG, PNG, WEBP</div>
+    </div>
+    <img id="preview" alt="Preview nota">
+    <div class="img-bar" id="img-bar" style="display:none">
+      <button class="ghost-btn" onclick="event.stopPropagation(); document.getElementById('file-input').click()">Ganti Foto</button>
+      <button class="ghost-btn" onclick="event.stopPropagation(); resetUpload()">Hapus</button>
+    </div>
+  </div>
+  <input type="file" id="file-input" accept="image/*" capture="environment">
+
+  <!-- Scan row -->
+  <div class="scan-row">
+    <button class="scan-btn" id="scan-btn" onclick="scanNota()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/>
+      </svg>
+      Scan Nota
+    </button>
+    <span class="hint" id="hint">Pilih foto terlebih dahulu</span>
+  </div>
+
+  <div class="error-box" id="error-box"></div>
+
+  <!-- Result -->
+  <div class="result" id="result">
+
+    <div class="divider"><span>Hasil Scan</span><div class="divider-line"></div></div>
+
+    <div class="nota-card">
+      <div class="nota-head">
+        <div>
+          <div class="toko-name" id="res-toko">—</div>
+          <div class="meta" id="res-meta"></div>
+        </div>
+        <div class="no-nota" id="res-nomor" style="display:none"></div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Kode</th>
+            <th>Nama Barang</th>
+            <th class="right">Qty</th>
+            <th class="right">Harga</th>
+            <th class="right">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody id="items-body"></tbody>
+      </table>
+
+      <div class="totals">
+        <div class="total-row" id="row-sub" style="display:none"><span>Subtotal</span><span id="res-sub"></span></div>
+        <div class="total-row" id="row-diskon" style="display:none"><span>Diskon</span><span id="res-diskon"></span></div>
+        <div class="total-row" id="row-pajak" style="display:none"><span>Pajak / PPN</span><span id="res-pajak"></span></div>
+        <div class="grand-row"><span>Total</span><span id="res-total">—</span></div>
+      </div>
+    </div>
+
+    <div class="catatan" id="catatan"></div>
+
+    <div style="margin-top:20px">
+      <div class="divider">
+        <span>Teks Mentah</span>
+        <div class="divider-line"></div>
+        <button class="copy-btn" id="copy-btn" onclick="copyRaw()">Salin</button>
+      </div>
+      <div class="raw-box" id="raw-box">—</div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+let selectedFile = null;
+let rawText = '';
+
+// Load saved backend URL
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('notascan_backend');
+  if (saved) document.getElementById('backend-url').value = saved;
+});
+
+function saveBackend() {
+  const url = document.getElementById('backend-url').value.trim().replace(/\/$/, '');
+  localStorage.setItem('notascan_backend', url);
+  const s = document.getElementById('config-status');
+  s.classList.add('show');
+  setTimeout(() => s.classList.remove('show'), 2000);
+}
+
+// Drag & drop
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); handleFile(e.dataTransfer.files[0]); });
+document.getElementById('file-input').addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function zoneClick() {
+  if (!selectedFile) document.getElementById('file-input').click();
+}
+
+function handleFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  selectedFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('preview').src = e.target.result;
+    document.getElementById('preview').style.display = 'block';
+    document.getElementById('zone-empty').style.display = 'none';
+    document.getElementById('img-bar').style.display = 'flex';
+    zone.classList.add('has-img');
+  };
+  reader.readAsDataURL(file);
+  document.getElementById('scan-btn').classList.add('active');
+  document.getElementById('hint').textContent = file.name;
+  hideError();
+}
+
+function resetUpload() {
+  selectedFile = null;
+  document.getElementById('file-input').value = '';
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('zone-empty').style.display = 'block';
+  document.getElementById('img-bar').style.display = 'none';
+  zone.classList.remove('has-img');
+  document.getElementById('scan-btn').classList.remove('active');
+  document.getElementById('hint').textContent = 'Pilih foto terlebih dahulu';
+  hideError();
+  document.getElementById('result').classList.remove('show');
+}
+
+function setLoading(on) {
+  const btn = document.getElementById('scan-btn');
+  document.getElementById('hint').textContent = on ? '⚡ Menganalisis dengan Claude AI...' : (selectedFile ? selectedFile.name : '');
+  btn.innerHTML = on
+    ? '<div class="spinner"></div> Memindai...'
+    : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/></svg> Scan Nota`;
+  btn.style.cursor = on ? 'not-allowed' : 'pointer';
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.textContent = '⚠ ' + msg;
+  el.classList.add('show');
+}
+function hideError() { document.getElementById('error-box').classList.remove('show'); }
+
+function fmt(val) {
+  if (val === null || val === undefined || val === '') return '—';
+  const n = typeof val === 'string' ? parseInt(val.replace(/\D/g,'')) : val;
+  if (isNaN(n)) return String(val);
+  return 'Rp ' + n.toLocaleString('id-ID');
+}
+
+async function scanNota() {
+  if (!selectedFile) return;
+  const backendUrl = (localStorage.getItem('notascan_backend') || '').trim();
+  if (!backendUrl) { showError('Isi Backend URL dulu, lalu klik Simpan.'); return; }
+
+  setLoading(true);
+  hideError();
+  document.getElementById('result').classList.remove('show');
+
+  try {
+    const base64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('Gagal membaca file'));
+      r.readAsDataURL(selectedFile);
+    });
+
+    const resp = await fetch(backendUrl + '/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_base64: base64, media_type: selectedFile.type || 'image/jpeg' })
+    });
+
+    if (!resp.ok) {
+      const e = await resp.json().catch(() => ({}));
+      throw new Error(e.detail || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const clean = data.result.replace(/```json|```/g, '').trim();
+
+    let parsed;
+    try { parsed = JSON.parse(clean); }
+    catch { throw new Error('Gagal parse hasil AI. Coba lagi dengan foto lebih terang.'); }
+
+    rawText = parsed.teks_mentah || data.result;
+    renderResult(parsed);
+
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function renderResult(d) {
+  document.getElementById('res-toko').textContent = d.nama_toko || 'Nama toko tidak terbaca';
+
+  const metaParts = [
+    d.alamat_toko,
+    d.tanggal && '📅 Tgl: ' + d.tanggal,
+    d.tanggal_jatuh_tempo && '⏰ Jatuh tempo: ' + d.tanggal_jatuh_tempo,
+    d.nama_pembeli && '🏪 ' + d.nama_pembeli,
+    d.sales && '👤 Sales: ' + d.sales
+  ].filter(Boolean);
+  document.getElementById('res-meta').textContent = metaParts.join('\n');
+
+  const nomor = document.getElementById('res-nomor');
+  if (d.nomor_nota) { nomor.textContent = 'No. ' + d.nomor_nota; nomor.style.display = 'block'; }
+
+  const tbody = document.getElementById('items-body');
+  tbody.innerHTML = '';
+  (d.items || []).forEach(item => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="muted">${item.kode || '—'}</td>
+      <td>${item.nama || '—'}</td>
+      <td class="right muted">${item.qty || '—'}${item.satuan ? ' ' + item.satuan : ''}</td>
+      <td class="right">${fmt(item.harga_satuan)}</td>
+      <td class="right">${fmt(item.subtotal)}</td>`;
+    tbody.appendChild(tr);
+  });
+  if (!d.items || !d.items.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#3a4060;padding:20px">Item tidak terdeteksi</td></tr>';
+  }
+
+  if (d.subtotal != null) { document.getElementById('res-sub').textContent = fmt(d.subtotal); document.getElementById('row-sub').style.display = 'flex'; }
+  if (d.diskon != null) { document.getElementById('res-diskon').textContent = '- ' + fmt(d.diskon); document.getElementById('row-diskon').style.display = 'flex'; }
+  if (d.pajak != null) { document.getElementById('res-pajak').textContent = fmt(d.pajak); document.getElementById('row-pajak').style.display = 'flex'; }
+  document.getElementById('res-total').textContent = fmt(d.total);
+
+  const cat = document.getElementById('catatan');
+  if (d.catatan) { cat.textContent = '📝 ' + d.catatan; cat.classList.add('show'); }
+
+  document.getElementById('raw-box').textContent = rawText || '—';
+  document.getElementById('result').classList.add('show');
+  setTimeout(() => document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+
+function copyRaw() {
+  if (!rawText) return;
+  navigator.clipboard.writeText(rawText).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✓ Disalin';
+    setTimeout(() => btn.textContent = 'Salin', 2000);
+  });
+}
+</script>
+</body>
+</html>
